@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -88,99 +89,99 @@ func main() {
 	}
 	log.Println("页面已创建")
 
+	// 自动签到
+	if err := autoSignIn(page); err != nil {
+		log.Printf("签到失败: %v（程序继续运行）", err)
+	} else {
+		log.Println("签到完成")
+	}
+
+	// 自动评论
+	if err := autoComment(page); err != nil {
+		log.Printf("评论失败: %v（程序继续运行）", err)
+	} else {
+		log.Println("评论完成")
+	}
+
+	log.Println("程序已结束")
+}
+
+func autoSignIn(page playwright.Page) error {
 	// 前往签到页面
-	if _, err = page.Goto("https://bbs.topfeel.com/h5/#/minePages/qiandao",
+	if _, err := page.Goto("https://bbs.topfeel.com/h5/#/minePages/qiandao",
 		playwright.PageGotoOptions{WaitUntil: playwright.WaitUntilStateNetworkidle}); err != nil {
-		log.Fatalf("前往签到页面失败: %v", err)
+		return fmt.Errorf("前往签到页面失败: %w", err)
 	}
 	time.Sleep(3 * time.Second)
-	log.Println("已前往签到页面")
+	log.Println("已进入签到页面")
 
 	// 检查是否未登录
 	if visible, _ := page.Locator(".login-tips-block").IsVisible(); visible {
-		log.Fatalln("未登录，无法签到")
+		return fmt.Errorf("未登录，无法签到")
 	}
-	log.Println("已登录网站，可进行签到")
+	log.Println("已登录，即将进行签到")
 
-	// 检查是否已签
+	// 检查是否已签到
 	if visible, _ := page.Locator("uni-button:has(> .yiqian)").IsVisible(); visible {
 		log.Println("今日已签到")
-		return
+		return nil
 	}
-	log.Println("未签到，开始进行签到操作")
+	log.Println("未签到，即将进行签到")
 
-	// 加载签到按钮
+	// 加载并点击签到按钮
 	signButton := page.Locator(`uni-button:has(> .weiqian)`).First()
-	err = signButton.WaitFor(playwright.LocatorWaitForOptions{State: playwright.WaitForSelectorStateVisible})
-	if err != nil {
-		log.Fatalf("等待签到按钮出现失败：%s", err)
+	if err := signButton.WaitFor(playwright.LocatorWaitForOptions{State: playwright.WaitForSelectorStateVisible}); err != nil {
+		return fmt.Errorf("等待签到按钮失败: %w", err)
 	}
-	log.Println("已加载签到按钮")
-
-	// 点击签到按钮
-	if err = signButton.Click(); err != nil {
-		log.Fatalf("点击签到按钮失败：%s", err)
+	if err := signButton.Click(); err != nil {
+		return fmt.Errorf("点击签到按钮失败: %w", err)
 	}
 	log.Println("已点击签到按钮")
 
-	// 等待滑块弹框出现
-	err = page.Locator(`.zmm-slider-verify-title`).First().WaitFor(playwright.LocatorWaitForOptions{
+	// 等待滑块并完成验证
+	if err := page.Locator(`.zmm-slider-verify-title`).First().WaitFor(playwright.LocatorWaitForOptions{
 		State: playwright.WaitForSelectorStateVisible,
-	})
-	if err != nil {
-		log.Fatalf("等待滑块弹框出现失败：%s", err)
+	}); err != nil {
+		return fmt.Errorf("等待滑块弹框失败: %w", err)
 	}
-	log.Println("已等待滑块弹框出现")
+	log.Println("已弹出滑块弹框")
 
-	// 获取滑动方块和验证方块的坐标
 	touchBlock, err := page.Locator(`.zmm-slider-verify-block-touch`).First().BoundingBox()
 	if err != nil {
-		log.Fatalf("获取滑动方块坐标失败：%s", err)
+		return fmt.Errorf("获取滑动方块坐标失败: %w", err)
 	}
 	verifyBlock, err := page.Locator(`.zmm-slider-verify-block-verify`).First().BoundingBox()
 	if err != nil {
-		log.Fatalf("获取验证方块坐标失败：%s", err)
+		return fmt.Errorf("获取验证方块坐标失败: %w", err)
 	}
-	log.Printf("滑动方块的坐标为：%f, %f", touchBlock.X, touchBlock.Y)
-	log.Printf("验证方块的坐标为：%f, %f", verifyBlock.X, verifyBlock.Y)
+	log.Println("已出现滑动方块和验证方块")
 
-	// 计算当前方块位置
-	box := touchBlock
-	centerX := box.X + box.Width/2
-	centerY := box.Y + box.Height/2
-	log.Printf("当前方块的中心坐标为：%f, %f", centerX, centerY)
-
-	// 计算目标方块坐标
+	centerX := touchBlock.X + touchBlock.Width/2
+	centerY := touchBlock.Y + touchBlock.Height/2
 	targetX := verifyBlock.X + verifyBlock.Width/2
 	targetY := touchBlock.Y + touchBlock.Height/2
-	log.Printf("目标方块的中心坐标为：%f, %f", targetX, targetY)
 
-	// 移动鼠标到当前方块中心坐标
-	err = page.Mouse().Move(centerX, centerY)
-	if err != nil {
-		log.Fatalf("移动鼠标到当前方块中心坐标：%s", err)
+	mouse := page.Mouse()
+	if err := mouse.Move(centerX, centerY); err != nil {
+		return fmt.Errorf("移动鼠标到起始位置失败: %w", err)
 	}
-	log.Println("已移动鼠标到当前方块中心坐标")
-
-	// 按下鼠标
-	err = page.Mouse().Down()
-	if err != nil {
-		log.Fatalf("按下鼠标失败：%s", err)
+	if err := mouse.Down(); err != nil {
+		return fmt.Errorf("按下鼠标失败: %w", err)
 	}
-	log.Println("已按下鼠标")
-
-	// 移动鼠标到目标方块中心坐标
 	step := 20
-	err = page.Mouse().Move(targetX, targetY, playwright.MouseMoveOptions{Steps: &step})
-	if err != nil {
-		log.Fatalf("移动鼠标到目标方块中心坐标失败：%s", err)
+	if err := mouse.Move(targetX, targetY, playwright.MouseMoveOptions{Steps: &step}); err != nil {
+		return fmt.Errorf("滑动到目标位置失败: %w", err)
 	}
-	log.Println("已移动鼠标到目标方块中心坐标")
+	if err := mouse.Up(); err != nil {
+		return fmt.Errorf("抬起鼠标失败: %w", err)
+	}
+	log.Println("已滑动滑块")
 
-	// 抬起鼠标
-	err = page.Mouse().Up()
-	if err != nil {
-		log.Fatalf("抬起鼠标失败：%s", err)
-	}
-	log.Println("已抬起鼠标")
+	return nil
+}
+
+func autoComment(page playwright.Page) error {
+	log.Println("即将进行自动评论")
+
+	return nil
 }
