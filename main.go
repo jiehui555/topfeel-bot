@@ -33,18 +33,15 @@ func init() {
 
 func main() {
 	// 安装浏览器
-	err := playwright.Install(&playwright.RunOptions{
-		Browsers: []string{"chromium"},
-	})
-	if err != nil {
-		log.Fatalf("浏览器安装失败：%s", err)
+	if err := playwright.Install(&playwright.RunOptions{Browsers: []string{"chromium"}}); err != nil {
+		log.Fatalf("浏览器安装失败: %v", err)
 	}
 	log.Println("浏览器已安装")
 
 	// 启动 Playwright
 	pw, err := playwright.Run()
 	if err != nil {
-		log.Fatalf("Playwright 启动失败：%s", err)
+		log.Fatalf("Playwright 启动失败: %v", err)
 	}
 	defer pw.Stop()
 	log.Println("Playwright 已启动")
@@ -52,10 +49,9 @@ func main() {
 	// 创建浏览器实例
 	browser, err := pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
 		Headless: playwright.Bool(ENABLE_BROWSER_HEADLESS),
-		SlowMo:   playwright.Float(300),
 	})
 	if err != nil {
-		log.Fatalf("浏览器启动失败：%s", err)
+		log.Fatalf("浏览器启动失败: %v", err)
 	}
 	defer browser.Close()
 	log.Println("浏览器已启动")
@@ -64,29 +60,23 @@ func main() {
 	context, err := browser.NewContext(playwright.BrowserNewContextOptions{
 		Viewport: &playwright.Size{Width: 1920, Height: 1080},
 		StorageState: &playwright.OptionalStorageState{
-			Cookies: []playwright.OptionalCookie{
-				{
-					Name:   "PHPSESSID",
-					Value:  SESSION_ID,
-					Domain: playwright.String(".topfeel.com"),
-					Path:   playwright.String("/"),
-				},
-			},
-			Origins: []playwright.Origin{
-				{
-					Origin: "https://bbs.topfeel.com",
-					LocalStorage: []playwright.NameValue{
-						{
-							Name:  "token",
-							Value: ACCESS_TOKEN,
-						},
-					},
-				},
-			},
+			Cookies: []playwright.OptionalCookie{{
+				Name:   "PHPSESSID",
+				Value:  SESSION_ID,
+				Domain: playwright.String(".topfeel.com"),
+				Path:   playwright.String("/"),
+			}},
+			Origins: []playwright.Origin{{
+				Origin: "https://bbs.topfeel.com",
+				LocalStorage: []playwright.NameValue{{
+					Name:  "token",
+					Value: ACCESS_TOKEN,
+				}},
+			}},
 		},
 	})
 	if err != nil {
-		log.Fatalf("页面上下文创建失败：%s", err)
+		log.Fatalf("上下文创建失败: %v", err)
 	}
 	defer context.Close()
 	log.Println("页面上下文已创建")
@@ -94,40 +84,27 @@ func main() {
 	// 创建页面实例
 	page, err := context.NewPage()
 	if err != nil {
-		log.Fatalf("页面实例创建失败：%s", err)
+		log.Fatalf("页面创建失败: %v", err)
 	}
-	defer page.Close()
 	log.Println("页面已创建")
 
 	// 前往签到页面
-	url := "https://bbs.topfeel.com/h5/#/minePages/qiandao"
-	_, err = page.Goto(url, playwright.PageGotoOptions{
-		WaitUntil: playwright.WaitUntilStateNetworkidle,
-		Timeout:   playwright.Float(30_000),
-	})
-	if err != nil {
-		log.Fatalf("前往签到页面失败：%s", err)
+	if _, err = page.Goto("https://bbs.topfeel.com/h5/#/minePages/qiandao",
+		playwright.PageGotoOptions{WaitUntil: playwright.WaitUntilStateNetworkidle}); err != nil {
+		log.Fatalf("前往签到页面失败: %v", err)
 	}
-	time.Sleep(time.Second * 3)
+	time.Sleep(3 * time.Second)
 	log.Println("已前往签到页面")
 
 	// 检查是否未登录
-	hasLoginTipsBlock, err := page.Locator(`.login-tips-block`).First().IsVisible()
-	if err != nil {
-		log.Fatalf("检查是否未登录失败：%s", err)
-	}
-	if hasLoginTipsBlock {
-		log.Fatalln("未登录网站，无法进行签到操作")
+	if visible, _ := page.Locator(".login-tips-block").IsVisible(); visible {
+		log.Fatalln("未登录，无法签到")
 	}
 	log.Println("已登录网站，可进行签到")
 
 	// 检查是否已签
-	isSigned, err := page.Locator(`uni-button:has(> .yiqian)`).First().IsVisible()
-	if err != nil {
-		log.Fatalf("检查是否已签到失败：%s", err)
-	}
-	if isSigned {
-		log.Println("已签到，无需重复签到")
+	if visible, _ := page.Locator("uni-button:has(> .yiqian)").IsVisible(); visible {
+		log.Println("今日已签到")
 		return
 	}
 	log.Println("未签到，开始进行签到操作")
