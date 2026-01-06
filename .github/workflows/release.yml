@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.22
+      - name: Build Windows amd64
+        run: GOOS=windows GOARCH=amd64 go build -o topfeel-bot-windows-amd64.exe
+      - name: Build Linux amd64
+        run: GOOS=linux GOARCH=amd64 go build -o topfeel-bot-linux-amd64
+      - name: Build Linux arm64
+        run: GOOS=linux GOARCH=arm64 go build -o topfeel-bot-linux-arm64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binaries
+          path: |
+            topfeel-bot-windows-amd64.exe
+            topfeel-bot-linux-amd64
+            topfeel-bot-linux-arm64
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: binaries
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            topfeel-bot-windows-amd64.exe
+            topfeel-bot-linux-amd64
+            topfeel-bot-linux-arm64
+          tag_name: ${{ github.ref_name }}

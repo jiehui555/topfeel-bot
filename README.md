@@ -3,8 +3,13 @@
 编译方法：
 
 ```bash
-set CGO_ENABLED=0
-set GOOS=linux
-set GOARCH=amd64  // 如需 32 位，用 386
 go build -o topfeel-bot
+```
+
+环境变量：
+
+```plaintext
+SESSION_ID=xxxxxx
+ACCESS_TOKEN=xxxxxx
+ENABLE_BROWSER_HEADLESS=true
 ```
