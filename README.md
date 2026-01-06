@@ -20,13 +20,3 @@ ENABLE_BROWSER_HEADLESS=true
 wget https://github.com/jiehui555/topfeel-bot/releases/latest/download/topfeel-bot-linux-amd64 -O /usr/local/bin/topfeel-bot
 chmod +x /usr/local/bin/topfeel-bot
 ```
-
-Alpine 定时任务：
-
-```bash
-rc-update add crond
-rc-service crond start
-
-vi /etc/crontabs/root
-0 * * * * /usr/local/bin/topfeel-bot
-```
